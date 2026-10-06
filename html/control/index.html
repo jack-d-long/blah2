@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="UTF-8">
+  <title>blah2</title>
+  <!-- load lib js -->
+  <script src="../lib/bootstrap-5.2.3.min.js"></script>
+  <script src="../lib/jquery-3.6.4.min.js"></script>
+  <!-- load lib css -->
+  <link rel="stylesheet" href="../lib/bootstrap-5.2.3.min.css">
+  <link rel="stylesheet" href="../lib/blah2.css">
+  <style>
+    .panel { max-width: 46rem; }
+    .panel .card { background-color: #ffffffcc; border: none; }
+    .stat dt { font-weight: normal; color: #555; }
+    .stat dd { font-weight: bold; margin-bottom: 0.4rem; }
+    .form-label { margin-bottom: 0.1rem; }
+    .hint { font-size: 0.8rem; color: #555; }
+    .overridden::after { content: " (override)"; font-size: 0.8rem; color: #b5481c; }
+    .changed { border-color: #b5481c; box-shadow: 0 0 0 0.15rem #b5481c40; }
+    .dot { display: inline-block; width: 0.7rem; height: 0.7rem; border-radius: 50%;
+      margin-right: 0.4rem; vertical-align: middle; background: #999; }
+    .dot.ok { background: #2e9d4a; }
+    .dot.warn { background: #e0a100; }
+    .dot.bad { background: #c0392b; }
+  </style>
+</head>
+<body>
+  <div class="container-fluid">
+    <div class="row align-items-center d-flex">
+    <nav class="navbar navbar-light navbar-expand text-center pb-4">
+      <ul class="navbar-nav mx-auto justify-content-center">
+        <li class="nav-item px-3 px-md-4">
+          <a class="navbar-brand mx-0 menu" href="/">RADAR</a>
+        </li>
+        <li class="nav-item px-3 px-md-4">
+          <a class="navbar-brand mx-0 menu" href="/controller">CONTROLLER</a>
+        </li>
+        <li class="nav-item px-3 px-md-4">
+          <a class="navbar-brand mx-0 menu text-decoration-underline" href="/control">CONTROL</a>
+        </li>
+      </ul>
+    </nav>
+    </div>
+
+    <div class="panel mx-auto pb-5">
+
+      <div class="card mb-3">
+        <div class="card-body">
+          <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+            <h5 class="mb-0"><span id="run-dot" class="dot"></span><span id="run-state">Connecting…</span></h5>
+            <button id="btn-pause" class="btn btn-dark" disabled>Pause processing</button>
+          </div>
+          <div class="row stat">
+            <dl class="col-6 col-md-3 mb-0"><dt>CPI time</dt><dd id="st-cpi">–</dd></dl>
+            <dl class="col-6 col-md-3 mb-0"><dt>Uptime</dt><dd id="st-uptime">–</dd></dl>
+            <dl class="col-6 col-md-3 mb-0"><dt>Sync</dt><dd><span id="sync-dot" class="dot"></span><span id="st-sync">–</span></dd></dl>
+            <dl class="col-6 col-md-3 mb-0"><dt>Offset / peak ratio</dt><dd id="st-offset">–</dd></dl>
+          </div>
+          <div class="hint" id="st-detail"></div>
+        </div>
+      </div>
+
+      <form id="params" class="card mb-3" autocomplete="off">
+        <div class="card-body">
+          <h5>Parameters</h5>
+          <p class="hint mb-3">Changes are saved to <code>config/override-rtlsdr.yml</code>. Applying restarts blah2 (a few seconds) and re-aligns the channels.</p>
+
+          <h6 class="mt-2">Capture</h6>
+          <div class="row g-2 mb-2">
+            <div class="col-6 col-md-4">
+              <label class="form-label" for="fc" data-key="capture.fc">Centre frequency (MHz)</label>
+              <input class="form-control" id="fc" type="number" step="0.001" min="24" max="1766">
+            </div>
+            <div class="col-6 col-md-4">
+              <label class="form-label" for="fs" data-key="capture.fs">Sample rate (MS/s)</label>
+              <select class="form-select" id="fs"></select>
+            </div>
+            <div class="col-6 col-md-4">
+              <label class="form-label" for="cpi" data-key="process.data.cpi">CPI (s)</label>
+              <input class="form-control" id="cpi" type="number" step="0.05" min="0.1" max="2">
+            </div>
+            <div class="col-6 col-md-4 gain-field">
+              <label class="form-label" for="gain0" data-key="capture.device.gain">Reference gain (dB)</label>
+              <select class="form-select" id="gain0"></select>
+            </div>
+            <div class="col-6 col-md-4 gain-field">
+              <label class="form-label" for="gain1" data-key="capture.device.gain">Surveillance gain (dB)</label>
+              <select class="form-select" id="gain1"></select>
+            </div>
+          </div>
+
+          <h6 class="mt-3">Delay-Doppler map</h6>
+          <div class="row g-2 mb-2">
+            <div class="col-6 col-md-3">
+              <label class="form-label" for="rangeMax" data-key="process.ambiguity.delayMax">Max range (km)</label>
+              <input class="form-control" id="rangeMax" type="number" step="0.1" min="0.1">
+              <div class="hint" id="rangeMax-hint"></div>
+            </div>
+            <div class="col-6 col-md-3">
+              <label class="form-label" for="delayMin" data-key="process.ambiguity.delayMin">Min delay (bins)</label>
+              <input class="form-control" id="delayMin" type="number" step="1" max="0" min="-200">
+              <div class="hint" id="delayMin-hint"></div>
+            </div>
+            <div class="col-6 col-md-3">
+              <label class="form-label" for="dopplerMin" data-key="process.ambiguity.dopplerMin">Doppler min (Hz)</label>
+              <input class="form-control" id="dopplerMin" type="number" step="1" max="0">
+            </div>
+            <div class="col-6 col-md-3">
+              <label class="form-label" for="dopplerMax" data-key="process.ambiguity.dopplerMax">Doppler max (Hz)</label>
+              <input class="form-control" id="dopplerMax" type="number" step="1" min="0">
+            </div>
+          </div>
+
+          <h6 class="mt-3">Clutter filter</h6>
+          <div class="row g-2 mb-2 align-items-end">
+            <div class="col-12 col-md-3">
+              <div class="form-check form-switch mb-2">
+                <input class="form-check-input" type="checkbox" id="clutterEnable">
+                <label class="form-check-label" for="clutterEnable" data-key="process.clutter.enable">Enabled</label>
+              </div>
+            </div>
+            <div class="col-6 col-md-3">
+              <label class="form-label" for="clutterRangeMax" data-key="process.clutter.delayMax">Max range (km)</label>
+              <input class="form-control" id="clutterRangeMax" type="number" step="0.1" min="0.1">
+              <div class="hint" id="clutterRangeMax-hint"></div>
+            </div>
+            <div class="col-6 col-md-3">
+              <label class="form-label" for="clutterDelayMin" data-key="process.clutter.delayMin">Min delay (bins)</label>
+              <input class="form-control" id="clutterDelayMin" type="number" step="1" max="0" min="-200">
+              <div class="hint" id="clutterDelayMin-hint"></div>
+            </div>
+          </div>
+          <p class="hint">Clutter filter cost grows with its span; it usually only needs to cover the direct path and nearby multipath.</p>
+
+          <h6 class="mt-3">Detection and tracking</h6>
+          <div class="row g-2 mb-3 align-items-end">
+            <div class="col-6 col-md-3">
+              <div class="form-check form-switch mb-2">
+                <input class="form-check-input" type="checkbox" id="detectionEnable">
+                <label class="form-check-label" for="detectionEnable" data-key="process.detection.enable">Detection</label>
+              </div>
+            </div>
+            <div class="col-6 col-md-3">
+              <div class="form-check form-switch mb-2">
+                <input class="form-check-input" type="checkbox" id="trackerEnable">
+                <label class="form-check-label" for="trackerEnable" data-key="process.tracker.enable">Tracker</label>
+              </div>
+            </div>
+            <div class="col-6 col-md-3">
+              <label class="form-label" for="pfa" data-key="process.detection.pfa">False-alarm rate</label>
+              <input class="form-control" id="pfa" type="text" inputmode="decimal">
+            </div>
+          </div>
+
+          <div class="d-flex flex-wrap gap-2">
+            <button type="submit" id="btn-apply" class="btn btn-dark" disabled>Apply and restart</button>
+            <button type="button" id="btn-discard" class="btn btn-outline-dark" disabled>Discard changes</button>
+            <button type="button" id="btn-reset" class="btn btn-outline-danger ms-auto">Revert to base config</button>
+          </div>
+          <div id="msg" class="mt-3" role="status"></div>
+        </div>
+      </form>
+
+    </div>
+  </div>
+</body>
+<script src="../js/common.js"></script>
+<script src="../js/control_panel.js"></script>
+</html>
