@@ -29,13 +29,13 @@ process:
     overlap: 0
   ambiguity:
     delayMin: -10
-    delayMax: 400
+    delayMax: 137
     dopplerMin: -200
     dopplerMax: 200
   clutter:
     enable: true
     delayMin: -10
-    delayMax: 400
+    delayMax: 137
   detection:
     enable: true
     pfa: 0.00001
