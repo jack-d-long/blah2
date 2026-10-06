@@ -75,6 +75,31 @@ private:
   /// @brief True while capture is running.
   std::atomic<bool> running;
 
+  /// @brief Mutex for sync status.
+  std::mutex statusMutex;
+
+  /// @brief Sync state ("acquiring" or "aligned").
+  std::string syncState;
+
+  /// @brief Last measured offset (samples).
+  double syncOffset;
+
+  /// @brief Last correlation peak / median.
+  double syncPeakRatio;
+
+  /// @brief Time of last acquire or sync check (POSIX ms).
+  uint64_t syncTime;
+
+  /// @brief Number of successful acquires.
+  uint32_t nAcquire;
+
+  /// @brief Update sync status.
+  /// @param state Sync state.
+  /// @param offset Measured offset (samples).
+  /// @param peakRatio Correlation peak / median.
+  /// @return Void.
+  void set_status(std::string state, double offset, double peakRatio);
+
   /// @brief Context passed to each async callback.
   struct CallbackContext
   {
@@ -149,6 +174,10 @@ public:
   /// @param loop True if samples should loop at EOF.
   /// @return Void.
   void replay(IqData *buffer1, IqData *buffer2, std::string file, bool loop);
+
+  /// @brief Sync status for the control API.
+  /// @return JSON string.
+  std::string status_json();
 
   /// @brief Estimate lag of x relative to y by FFT cross-correlation.
   /// @details A positive lag means x leads, i.e. x[n + lag] matches y[n],

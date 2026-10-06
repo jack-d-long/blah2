@@ -80,6 +80,10 @@ public:
   /// @return Void.
   void close_file();
 
+  /// @brief Device status for the control API.
+  /// @return JSON string, or empty if the device reports no status.
+  virtual std::string status_json();
+
   /// @brief Graceful handler for SIGTERM.
   /// @return Void.
   void kill();

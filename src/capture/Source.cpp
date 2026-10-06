@@ -62,6 +62,11 @@ void Source::close_file()
   std::swap(saveIqFile, blankFile);
 }
 
+std::string Source::status_json()
+{
+  return "";
+}
+
 void Source::kill()
 {
   if (type == "RspDuo")

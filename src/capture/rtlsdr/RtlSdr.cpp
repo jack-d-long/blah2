@@ -9,6 +9,7 @@
 #include <cstdlib>
 #include <algorithm>
 #include <stdexcept>
+#include <sstream>
 #include <fftw3.h>
 
 // constructor
@@ -37,6 +38,11 @@ RtlSdr::RtlSdr(std::string _type, uint32_t _fc, uint32_t _fs,
   interval = _interval;
   minPeakRatio = _minPeakRatio;
   running = false;
+  syncState = "acquiring";
+  syncOffset = 0;
+  syncPeakRatio = 0;
+  syncTime = 0;
+  nAcquire = 0;
   for (int i = 0; i < N_CHANNEL; i++)
   {
     dev[i] = nullptr;
@@ -202,6 +208,7 @@ bool RtlSdr::acquire()
     std::cout << "[RtlSdr] Acquire failed: offset " << lag <<
       " samples, peak ratio " << peakRatio << " < " << minPeakRatio <<
       ", retrying." << std::endl;
+    set_status("acquiring", lag, peakRatio);
     fifo[0].erase(fifo[0].begin(), fifo[0].begin() + nBytes);
     fifo[1].erase(fifo[1].begin(), fifo[1].begin() + nBytes);
     return false;
@@ -219,6 +226,11 @@ bool RtlSdr::acquire()
     ", dropped " << std::labs(lagInt) << " from " <<
     (lead == 0 ? "reference" : "surveillance") << "." <<
     std::defaultfloat << std::endl;
+  {
+    std::lock_guard<std::mutex> statusLock(statusMutex);
+    nAcquire++;
+  }
+  set_status("aligned", lag - lagInt, peakRatio);
   return true;
 }
 
@@ -339,6 +351,7 @@ void RtlSdr::align(IqData *buffer1, IqData *buffer2)
       std::cout << "[RtlSdr] Alignment lost, re-acquiring." << std::endl;
       aligned = false;
     }
+    set_status(aligned ? "aligned" : "acquiring", lag, peakRatio);
     lastCheck = std::chrono::steady_clock::now();
     snapX.clear();
     snapY.clear();
@@ -477,6 +490,36 @@ void RtlSdr::replay(IqData *buffer1, IqData *buffer2, std::string _file, bool _l
     }
   }
   fclose(file);
+}
+
+void RtlSdr::set_status(std::string state, double offset, double peakRatio)
+{
+  std::lock_guard<std::mutex> lock(statusMutex);
+  syncState = state;
+  syncOffset = offset;
+  syncPeakRatio = peakRatio;
+  syncTime = std::chrono::duration_cast<std::chrono::milliseconds>(
+    std::chrono::system_clock::now().time_since_epoch()).count();
+}
+
+std::string RtlSdr::status_json()
+{
+  uint64_t received[N_CHANNEL];
+  {
+    std::lock_guard<std::mutex> lock(fifoMutex);
+    received[0] = nReceived[0];
+    received[1] = nReceived[1];
+  }
+  std::lock_guard<std::mutex> lock(statusMutex);
+  std::ostringstream oss;
+  oss << std::fixed << std::setprecision(2) << "{\"device\":\"RtlSdr\"," <<
+    "\"state\":\"" << syncState << "\"," <<
+    "\"offset\":" << syncOffset << "," <<
+    "\"peakRatio\":" << syncPeakRatio << "," <<
+    "\"time\":" << syncTime << "," <<
+    "\"nAcquire\":" << nAcquire << "," <<
+    "\"received\":[" << received[0] << "," << received[1] << "]}";
+  return oss.str();
 }
 
 void RtlSdr::check_status(int status, std::string message)

@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <atomic>
 #include <ryml/ryml.hpp>
 #include <ryml/ryml_std.hpp> // optional header, provided for std:: interop
 #include <c4/format.hpp> // needed for the examples below
@@ -37,6 +38,9 @@ private:
   /// @brief Absolute path of file to replay.
   std::string file;
 
+  /// @brief Config override version from the control API.
+  std::string controlVersion;
+
 public:
 
   /// @brief Sampling frequency (Hz).
@@ -47,6 +51,9 @@ public:
 
   /// @brief Absolute path to IQ save location.
   std::string path;
+
+  /// @brief True if processing paused by the control API.
+  std::atomic<bool> paused;
 
   /// @brief Pointer to capture device.
   std::unique_ptr<Source> device;

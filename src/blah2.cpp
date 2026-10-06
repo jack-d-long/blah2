@@ -47,6 +47,9 @@ void signal_callback_handler(int signum);
 void getopt_print_help();
 std::string getopt_process(int argc, char **argv);
 std::string ryml_get_file(const char *filename);
+void ryml_overlay(ryml::Tree &dst, size_t dstNode, 
+  const ryml::Tree &src, size_t srcNode);
+std::string overrideFile;
 uint64_t current_time_ms();
 uint64_t current_time_us();
 void timing_helper(std::vector<std::string>& timing_name, 
@@ -68,6 +71,19 @@ int main(int argc, char **argv)
   // config handling
   std::string contents = ryml_get_file(file.c_str());
   ryml::Tree tree = ryml::parse_in_arena(ryml::to_csubstr(contents));
+
+  // apply optional override file (written by control API)
+  ryml::Tree treeOverride;
+  if (!overrideFile.empty() && std::ifstream(overrideFile).good())
+  {
+    std::string contentsOverride = ryml_get_file(overrideFile.c_str());
+    treeOverride = ryml::parse_in_arena(ryml::to_csubstr(contentsOverride));
+    if (treeOverride.rootref().is_map())
+    {
+      ryml_overlay(tree, tree.root_id(), treeOverride, treeOverride.root_id());
+      std::cout << "Applied config override: " << overrideFile << "\n";
+    }
+  }
 
   // set up capture
   uint32_t fs, fc;
@@ -246,6 +262,18 @@ int main(int argc, char **argv)
   std::thread t2([&]{
       while (true)
       {
+        // paused by control API, discard samples
+        if (capture->paused)
+        {
+          buffer1->lock();
+          buffer2->lock();
+          buffer1->clear();
+          buffer2->clear();
+          buffer1->unlock();
+          buffer2->unlock();
+          std::this_thread::sleep_for(std::chrono::milliseconds(100));
+          continue;
+        }
         buffer1->lock();
         buffer2->lock();
         if ((buffer1->get_length() > nSamples) && (buffer2->get_length() > nSamples))
@@ -381,15 +409,17 @@ void signal_callback_handler(int signum) {
 void getopt_print_help()
 {
   std::cout << "--config <file.yml>: 	Set number of program\n"
+               "--override <file.yml>:	Overlay values on config\n"
                "--help:              	Show help\n";
   exit(1);
 }
 
 std::string getopt_process(int argc, char **argv)
 {
-  const char *const short_opts = "c:h";
+  const char *const short_opts = "c:o:h";
   const option long_opts[] = {
       {"config", required_argument, nullptr, 'c'},
+      {"override", required_argument, nullptr, 'o'},
       {"help", no_argument, nullptr, 'h'},
       {nullptr, no_argument, nullptr, 0}};
 
@@ -419,6 +449,10 @@ std::string getopt_process(int argc, char **argv)
     {
     case 'c':
       file = std::string(optarg);
+      break;
+
+    case 'o':
+      overrideFile = std::string(optarg);
       break;
 
     case 'h':
@@ -471,4 +505,31 @@ void timing_helper(std::vector<std::string>& timing_name,
   double delta_ms = (double)(time_us.back()-time_us[time_us.size()-2]) / 1000;
   timing_name.push_back(name);
   timing_time.push_back(delta_ms);
+}
+
+void ryml_overlay(ryml::Tree &dst, size_t dstNode, 
+  const ryml::Tree &src, size_t srcNode)
+{
+  for (size_t s = src.first_child(srcNode); s != ryml::NONE; 
+    s = src.next_sibling(s))
+  {
+    if (!src.has_key(s))
+    {
+      continue;
+    }
+    size_t d = dst.find_child(dstNode, src.key(s));
+    // merge maps, replace everything else (including sequences)
+    if (d != ryml::NONE && src.is_map(s) && dst.is_map(d))
+    {
+      ryml_overlay(dst, d, src, s);
+      continue;
+    }
+    size_t after = dst.last_child(dstNode);
+    if (d != ryml::NONE)
+    {
+      after = dst.prev_sibling(d);
+      dst.remove(d);
+    }
+    dst.duplicate(&src, s, dstNode, after);
+  }
 }

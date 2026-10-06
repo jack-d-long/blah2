@@ -48,6 +48,11 @@ app.use(function(req, res, next) {
 app.get('/', (req, res) => {
   res.send('Hello World');
 });
+
+// control api, enabled when an override file path is given
+if (process.argv[3]) {
+  require('./control.js')(app, config, process.argv[2], process.argv[3]);
+}
 app.get('/api/map', (req, res) => {
   res.send(map);
 });

@@ -9,3 +9,5 @@ doc/html/*
 doc/latex/*
 !doc/html/example.png
 save/*
+config/override-*.yml
+config/override-*.yml.tmp

@@ -7,6 +7,7 @@
 #include <iostream>
 #include <thread>
 #include <httplib.h>
+#include "rapidjson/document.h"
 
 // constants
 const std::string Capture::VALID_TYPE[5] = {"RspDuo", "Usrp", "HackRF", "Kraken", "RtlSdr"};
@@ -20,6 +21,7 @@ Capture::Capture(std::string _type, uint32_t _fs, uint32_t _fc, std::string _pat
   path = _path;
   replay = false;
   saveIq = false;
+  paused = false;
 }
 
 void Capture::process(IqData *buffer1, IqData *buffer2, c4::yml::NodeRef config, 
@@ -38,7 +40,7 @@ void Capture::process(IqData *buffer1, IqData *buffer2, c4::yml::NodeRef config,
       httplib::Result res = cli.Get("/capture");
 
       // if capture status changed
-      if ((res->body == "true") != saveIq)
+      if (res && (res->body == "true") != saveIq)
       {
         saveIq = res->body == "true";
         if (saveIq)
@@ -49,6 +51,43 @@ void Capture::process(IqData *buffer1, IqData *buffer2, c4::yml::NodeRef config,
         {
           device->close_file();
         }
+      }
+
+      // processing control
+      res = cli.Get("/control/state");
+      if (res && res->status == 200)
+      {
+        rapidjson::Document document;
+        document.Parse(res->body.c_str());
+        if (!document.HasParseError() && document.IsObject() &&
+          document.HasMember("paused") && document["paused"].IsBool() &&
+          document.HasMember("version") && document["version"].IsString())
+        {
+          if (document["paused"].GetBool() != paused)
+          {
+            paused = document["paused"].GetBool();
+            std::cout << "Processing " << (paused ? "paused" : "resumed") 
+              << "." << std::endl;
+          }
+          std::string version = document["version"].GetString();
+          if (controlVersion.empty())
+          {
+            controlVersion = version;
+          }
+          else if (version != controlVersion)
+          {
+            // restart (via container restart policy) to apply new config
+            std::cout << "Config override changed, restarting." << std::endl;
+            device->kill();
+          }
+        }
+      }
+
+      // device status
+      std::string status = device->status_json();
+      if (!status.empty())
+      {
+        cli.Post("/control/device", status, "application/json");
       }
       sleep(1);
     }
