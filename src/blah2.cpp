@@ -138,6 +138,12 @@ int main(int argc, char **argv)
 
   Capture *capture = new Capture(type, fs, fc, path);
   CAPTURE_POINTER = capture;
+
+  // under the control API, start paused until resumed
+  if (!overrideFile.empty())
+  {
+    capture->paused = true;
+  }
   if (state)
   {
     capture->set_replay(loop, replayFile);
@@ -409,7 +415,7 @@ void signal_callback_handler(int signum) {
 void getopt_print_help()
 {
   std::cout << "--config <file.yml>: 	Set number of program\n"
-               "--override <file.yml>:	Overlay values on config\n"
+               "--override <file.yml>:	Overlay values on config, start paused\n"
                "--help:              	Show help\n";
   exit(1);
 }

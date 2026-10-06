@@ -77,7 +77,8 @@ function validate(key, value) {
 }
 
 module.exports = function (app, config, configFile, overrideFile) {
-  let paused = false;
+  // start paused, processing only runs once resumed from the control page
+  let paused = true;
   let resync = 0;
   let device = null;
   let deviceTime = 0;
