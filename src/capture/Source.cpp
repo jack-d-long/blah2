@@ -70,6 +70,9 @@ void Source::kill()
   } else if (type == "HackRF")
   {
     stop();
+  } else if (type == "RtlSdr")
+  {
+    stop();
   }
   exit(0);
 }

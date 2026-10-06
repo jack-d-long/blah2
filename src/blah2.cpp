@@ -118,6 +118,7 @@ int main(int argc, char **argv)
     return -1;
   }
   fftw_plan_with_nthreads(4);
+  fftw_make_planner_thread_safe();
 
   Capture *capture = new Capture(type, fs, fc, path);
   CAPTURE_POINTER = capture;

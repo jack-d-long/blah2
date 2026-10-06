@@ -3,12 +3,13 @@
 #include "usrp/Usrp.h"
 #include "hackrf/HackRf.h"
 #include "kraken/Kraken.h"
+#include "rtlsdr/RtlSdr.h"
 #include <iostream>
 #include <thread>
 #include <httplib.h>
 
 // constants
-const std::string Capture::VALID_TYPE[4] = {"RspDuo", "Usrp", "HackRF", "Kraken"};
+const std::string Capture::VALID_TYPE[5] = {"RspDuo", "Usrp", "HackRF", "Kraken", "RtlSdr"};
 
 // constructor
 Capture::Capture(std::string _type, uint32_t _fs, uint32_t _fc, std::string _path)
@@ -148,6 +149,34 @@ std::unique_ptr<Source> Capture::factory_source(const std::string& type, c4::yml
         gain.push_back(static_cast<double>(_gain));
       }
       return std::make_unique<Kraken>(type, fc, fs, path, &saveIq, gain);
+    }
+    // 2x clock-synchronised RTL-SDR
+    else if (type == VALID_TYPE[4])
+    {
+      std::vector<std::string> serial;
+      std::vector<double> gain;
+      std::string _serial;
+      double _gain;
+      uint32_t nCorr = 262144, maxLag = 100000;
+      double interval = 10, minPeakRatio = 10;
+      config["serial"][0] >> _serial;
+      serial.push_back(_serial);
+      config["serial"][1] >> _serial;
+      serial.push_back(_serial);
+      config["gain"][0] >> _gain;
+      gain.push_back(_gain);
+      config["gain"][1] >> _gain;
+      gain.push_back(_gain);
+      if (config.has_child("sync"))
+      {
+        c4::yml::NodeRef sync = config["sync"];
+        if (sync.has_child("nCorr")) sync["nCorr"] >> nCorr;
+        if (sync.has_child("maxLag")) sync["maxLag"] >> maxLag;
+        if (sync.has_child("interval")) sync["interval"] >> interval;
+        if (sync.has_child("minPeakRatio")) sync["minPeakRatio"] >> minPeakRatio;
+      }
+      return std::make_unique<RtlSdr>(type, fc, fs, path, &saveIq,
+        serial, gain, nCorr, maxLag, interval, minPeakRatio);
     }
     // handle unknown type
     std::cerr << "Error: Source type does not exist." << std::endl;

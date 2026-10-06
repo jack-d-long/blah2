@@ -47,6 +47,7 @@ add_executable(blah2
   src/capture/usrp/Usrp.cpp
   src/capture/hackrf/HackRf.cpp
   src/capture/kraken/Kraken.cpp
+  src/capture/rtlsdr/RtlSdr.cpp
   src/process/ambiguity/Ambiguity.cpp
   src/process/clutter/WienerHopf.cpp
   src/process/detection/CfarDetector1D.cpp
@@ -114,6 +115,20 @@ target_link_libraries(testHammingNumber PRIVATE
   Catch2::Catch2WithMain
 )
 set_target_properties(testHammingNumber PROPERTIES 
+  RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_TEST_UNIT_DIR}")
+
+add_executable(testRtlSdrSync
+  test/unit/capture/rtlsdr/TestRtlSdrSync.cpp
+  src/capture/Source.cpp
+  src/capture/rtlsdr/RtlSdr.cpp
+  src/data/IqData.cpp
+)
+target_link_libraries(testRtlSdrSync PRIVATE 
+  Catch2::Catch2WithMain
+  fftw3
+  rtlsdr
+)
+set_target_properties(testRtlSdrSync PROPERTIES 
   RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_TEST_UNIT_DIR}")
 
 # TODO: Unsure if will be using CTest.
