@@ -41,6 +41,9 @@ private:
   /// @brief Config override version from the control API.
   std::string controlVersion;
 
+  /// @brief Re-sync request count from the control API (-1 if unknown).
+  int64_t controlResync;
+
 public:
 
   /// @brief Sampling frequency (Hz).

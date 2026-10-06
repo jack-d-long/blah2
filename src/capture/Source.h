@@ -80,6 +80,10 @@ public:
   /// @return Void.
   void close_file();
 
+  /// @brief Request re-synchronisation of channels, if supported.
+  /// @return Void.
+  virtual void resync();
+
   /// @brief Device status for the control API.
   /// @return JSON string, or empty if the device reports no status.
   virtual std::string status_json();

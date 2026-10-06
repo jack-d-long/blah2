@@ -50,7 +50,10 @@
         <div class="card-body">
           <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
             <h5 class="mb-0"><span id="run-dot" class="dot"></span><span id="run-state">Connecting…</span></h5>
-            <button id="btn-pause" class="btn btn-dark" disabled>Pause processing</button>
+            <div class="d-flex gap-2">
+              <button id="btn-resync" class="btn btn-outline-dark" disabled title="Re-measure and correct the offset between the two channels">Re-sync</button>
+              <button id="btn-pause" class="btn btn-dark" disabled>Pause processing</button>
+            </div>
           </div>
           <div class="row stat">
             <dl class="col-6 col-md-3 mb-0"><dt>CPI time</dt><dd id="st-cpi">–</dd></dl>

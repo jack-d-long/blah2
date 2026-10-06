@@ -38,6 +38,7 @@ RtlSdr::RtlSdr(std::string _type, uint32_t _fc, uint32_t _fs,
   interval = _interval;
   minPeakRatio = _minPeakRatio;
   running = false;
+  resyncRequested = false;
   syncState = "acquiring";
   syncOffset = 0;
   syncPeakRatio = 0;
@@ -54,14 +55,37 @@ RtlSdr::RtlSdr(std::string _type, uint32_t _fc, uint32_t _fs,
 void RtlSdr::start()
 {
   int status;
+
+  // wait until both devices are connected
+  std::string missing = "";
+  while (true)
+  {
+    std::string nowMissing = "";
+    for (int i = 0; i < N_CHANNEL; i++)
+    {
+      if (rtlsdr_get_index_by_serial(serial[i].c_str()) < 0)
+      {
+        nowMissing += (nowMissing.empty() ? "" : ", ") + serial[i];
+      }
+    }
+    if (nowMissing.empty())
+    {
+      break;
+    }
+    if (nowMissing != missing)
+    {
+      std::cout << "[RtlSdr] Waiting for device " << nowMissing << 
+        "." << std::endl;
+      set_status("waiting for " + nowMissing, 0, 0);
+      missing = nowMissing;
+    }
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+  }
+  set_status("acquiring", 0, 0);
+
   for (int i = 0; i < N_CHANNEL; i++)
   {
     int index = rtlsdr_get_index_by_serial(serial[i].c_str());
-    if (index < 0)
-    {
-      throw std::runtime_error("[RtlSdr] Device with serial " +
-        serial[i] + " not found.");
-    }
     std::cout << "[RtlSdr] Setting up channel " << i << " (serial " <<
       serial[i] << ", index " << index << ")." << std::endl;
 
@@ -245,6 +269,12 @@ void RtlSdr::align(IqData *buffer1, IqData *buffer2)
 
   while (running)
   {
+    if (resyncRequested.exchange(false))
+    {
+      std::cout << "[RtlSdr] Re-sync requested." << std::endl;
+      set_status("acquiring", 0, 0);
+      aligned = false;
+    }
     if (!aligned)
     {
       aligned = acquire();
@@ -500,6 +530,11 @@ void RtlSdr::set_status(std::string state, double offset, double peakRatio)
   syncPeakRatio = peakRatio;
   syncTime = std::chrono::duration_cast<std::chrono::milliseconds>(
     std::chrono::system_clock::now().time_since_epoch()).count();
+}
+
+void RtlSdr::resync()
+{
+  resyncRequested = true;
 }
 
 std::string RtlSdr::status_json()

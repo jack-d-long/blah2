@@ -170,13 +170,14 @@ function poll_state() {
       $id('run-state').textContent = paused ? 'Processing paused' : 'Processing running';
       runDot.className = 'dot ' + (paused ? 'warn' : 'ok');
     }
+    $id('btn-resync').disabled = !alive;
     var btn = $id('btn-pause');
     btn.disabled = false;
     btn.textContent = paused ? 'Resume processing' : 'Pause processing';
 
     if (dev && dev.state) {
       $id('st-sync').textContent = alive ? dev.state : 'unknown';
-      $id('sync-dot').className = 'dot ' + (!alive ? '' : dev.state === 'aligned' ? 'ok' : 'warn');
+      $id('sync-dot').className = 'dot ' + (!alive ? '' : dev.state === 'aligned' ? 'ok' : dev.state.indexOf('waiting') === 0 ? 'bad' : 'warn');
       $id('st-offset').textContent = dev.offset.toFixed(2) + ' / ' + dev.peakRatio.toFixed(0);
       var age = dev.time ? Math.round((Date.now() - dev.time) / 1000) + ' s ago' : 'never';
       $id('st-detail').textContent = 'Last sync check ' + age + ' · acquires ' + dev.nAcquire +
@@ -187,6 +188,7 @@ function poll_state() {
     $id('run-state').textContent = 'API not reachable';
     $id('run-dot').className = 'dot bad';
     $id('btn-pause').disabled = true;
+    $id('btn-resync').disabled = true;
   });
 }
 
@@ -207,6 +209,13 @@ $id('btn-pause').addEventListener('click', function () {
   this.disabled = true;
   request('POST', paused ? '/control/resume' : '/control/pause')
     .then(poll_state)
+    .catch(function (e) { show('Failed: ' + e.message, 'danger'); });
+});
+
+$id('btn-resync').addEventListener('click', function () {
+  this.disabled = true;
+  request('POST', '/control/resync')
+    .then(function () { show('Re-sync requested; the channels re-align within a second or two.', 'success'); })
     .catch(function (e) { show('Failed: ' + e.message, 'danger'); });
 });
 

@@ -75,6 +75,9 @@ private:
   /// @brief True while capture is running.
   std::atomic<bool> running;
 
+  /// @brief True if re-alignment requested by the control API.
+  std::atomic<bool> resyncRequested;
+
   /// @brief Mutex for sync status.
   std::mutex statusMutex;
 
@@ -174,6 +177,10 @@ public:
   /// @param loop True if samples should loop at EOF.
   /// @return Void.
   void replay(IqData *buffer1, IqData *buffer2, std::string file, bool loop);
+
+  /// @brief Request re-alignment of the channels.
+  /// @return Void.
+  void resync();
 
   /// @brief Sync status for the control API.
   /// @return JSON string.

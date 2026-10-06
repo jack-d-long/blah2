@@ -78,6 +78,7 @@ function validate(key, value) {
 
 module.exports = function (app, config, configFile, overrideFile) {
   let paused = false;
+  let resync = 0;
   let device = null;
   let deviceTime = 0;
 
@@ -121,6 +122,7 @@ module.exports = function (app, config, configFile, overrideFile) {
   function state() {
     return {
       paused: paused,
+      resync: resync,
       version: version(),
       device: device,
       deviceAge: device ? (Date.now() - deviceTime) / 1000 : null
@@ -145,6 +147,12 @@ module.exports = function (app, config, configFile, overrideFile) {
 
   app.post('/control/resume', (req, res) => {
     paused = false;
+    res.json(state());
+  });
+
+  // blah2 re-aligns channels when this count changes
+  app.post('/control/resync', (req, res) => {
+    resync++;
     res.json(state());
   });
 

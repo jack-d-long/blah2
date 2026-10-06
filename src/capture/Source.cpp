@@ -62,6 +62,10 @@ void Source::close_file()
   std::swap(saveIqFile, blankFile);
 }
 
+void Source::resync()
+{
+}
+
 std::string Source::status_json()
 {
   return "";

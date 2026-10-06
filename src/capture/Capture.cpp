@@ -22,6 +22,7 @@ Capture::Capture(std::string _type, uint32_t _fs, uint32_t _fc, std::string _pat
   replay = false;
   saveIq = false;
   paused = false;
+  controlResync = -1;
 }
 
 void Capture::process(IqData *buffer1, IqData *buffer2, c4::yml::NodeRef config, 
@@ -79,6 +80,15 @@ void Capture::process(IqData *buffer1, IqData *buffer2, c4::yml::NodeRef config,
             // restart (via container restart policy) to apply new config
             std::cout << "Config override changed, restarting." << std::endl;
             device->kill();
+          }
+          if (document.HasMember("resync") && document["resync"].IsInt64())
+          {
+            int64_t resync = document["resync"].GetInt64();
+            if (controlResync >= 0 && resync != controlResync)
+            {
+              device->resync();
+            }
+            controlResync = resync;
           }
         }
       }
